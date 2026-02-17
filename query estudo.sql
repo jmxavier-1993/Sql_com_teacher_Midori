@@ -660,7 +660,80 @@ select 'SÃO PAULO' = UPPER ('são paulo')
 select TRIM('São    Paulo')='São Paulo'
 select REPLACE( 'SAO PAULO','SAO','SÃO')='SÃO PAULO'
 
+--somas de datas com  interval
+select current_date +10
+select (current_date + interval '1 week')::date
+select (current_date + interval '1 month')::date
+select (current_date + interval '1 hours')::timestamp
+
+--truncagem de datas com  date_trunc
 
 
+select visit_page_date, count(*)
+from sales.funnel
+group by visit_page_date
+order by visit_page_date desc
+
+select 
+date_trunc('month',visit_page_date)::date as visit_page_month,
+count(*)
+from sales.funnel
+group by visit_page_month
+order by visit_page_month desc
+
+--extração de unidades de uma data com  extract
+select 
+current_date :: date,
+extract ('dow'from current_date :: date)
+
+select 
+extract ('dow'from visit_page_date :: date ) as dia_da_semana,
+count(*) as contagem_visitas_dow
+from sales.funnel
+group by dia_da_semana
+order by contagem_visitas_dow desc
+
+---- diferença de datas usando operador de subtração por dias,semanas,meses e anos
+select
+(current_date  - ('2025-01-01'::date)) as days
+
+select
+(current_date  - ('2025-01-01'::date))/7 as weeks
+
+select
+(current_date  - ('2025-01-01'::date))/30 as months
+
+select
+(current_date  - ('2025-01-01'::date))/365 as years
+
+--criando funções
+--função datediff
+create function datediff(unidade varchar,data_inicial date,data_final date)
+returns integer
+language sql
+as 
+$$
+
+select 
+case 
+when unidade in ('d','day','days') then (data_final- data_inicial)
+when unidade in ('w','week','weeks') then (data_final- data_inicial)/7
+when unidade in ('m','month','months') then (data_final- data_inicial)/30
+when unidade in ('y','year','years') then (data_final- data_inicial)/365
+end as diferenca
+$$
+
+select
+datediff('day',('2025-01-01'::date),current_date )
+
+select
+datediff('week',('2025-01-01'::date),current_date )
+
+select
+datediff('month',('2025-01-01'::date),current_date )
+
+select
+datediff('year',('2025-01-01'::date),current_date )
 
 
+-- para deletar é só digitar drop function datediff
