@@ -1,4 +1,6 @@
 
+
+
 select email
 from sales.customers;
 
@@ -737,3 +739,169 @@ datediff('year',('2025-01-01'::date),current_date )
 
 
 -- para deletar é só digitar drop function datediff
+
+--criar uma tabela calculando a idade, usando uma query 
+select 
+customer_id,
+datediff('years',birth_date,current_date) as idade_cliente
+into temp_tables.customers_age
+from sales.customers
+
+
+select*
+from temp_tables.customers_age
+
+--criar uma tabela com a tradução de professional status
+
+select distinct professional_status
+from sales.customers
+
+create table temp_tables.profissoes(
+professional_status varchar,
+status_profissional varchar
+
+)
+
+--populando a tabela
+insert into temp_tables.profissoes(professional_status,status_profissional)
+values 
+( 'freelancer','freelancer'),
+('retired','aposentado(a)'),
+('clt','empregado(a)'),
+('self_employed','autônomo(a)'),
+('other','outro)'),
+('businessman','empresário(a)'),
+('civil_servant','funcionário público(a)'),
+('student','Estudante(a)')
+
+select *
+from temp_tables.profissoes
+
+-- para deletar é só digitar drop table temp_tables.profissoes
+
+--inserir linhas na tabela
+insert into temp_tables.profissoes(professional_status,status_profissional)
+values 
+( 'unemployed','desempregado(a)'),
+('trainee','estagiário(a)')
+
+--atualizar o professional_status trainee para intern
+update  temp_tables.profissoes
+set professional_status='intern'
+where status_profissional='estagiário(a)'
+
+--deletar linhas
+delete from temp_tables.profissoes
+where status_profissional='estagiário(a)'
+or  status_profissional='desempregado(a)'
+
+-- inserção de colunas
+alter table sales.customers
+add column customer_age int
+
+select *
+from sales.customers
+
+update sales.customers
+set customer_age = datediff('years',birth_date,current_date)
+where true
+
+--alterar tipo de uma coluna
+alter table sales.customers
+alter column customer_age type varchar
+
+--alterar nome de uma coluna
+alter table sales.customers
+rename column customer_age to age
+
+--deletar uma coluna
+--alter table sales.customers
+--drop column age
+
+-----querys do dash
+with leads as (
+select
+date_trunc('month', visit_page_date)::date as visit_page_month,
+count(*) as visit_page_count
+from sales.funnel
+group by visit_page_month
+order by visit_page_month
+),
+payments as(
+select 
+date_trunc('month', fun.paid_date)::date as paid_month,
+count(fun.paid_date) as paid_count,
+sum(pro.price*(1+ fun.discount)) as receita
+from sales.funnel as fun
+left join sales.products as pro
+on fun.product_id = pro.product_id
+where fun.paid_date is not null
+group by paid_month
+order by paid_month
+)
+
+select
+leads.visit_page_month as mês,
+leads.visit_page_count as leads,
+payments.paid_count as vendas,
+ROUND((payments.receita/1000)::numeric,2)as receita_k,
+ROUND((payments.paid_count:: numeric/nullif (leads.visit_page_count,0)),2)as conversão,
+ROUND((payments.receita/nullif (payments.paid_count,0)/100)::numeric,2) as ticket_medio_k
+from leads
+left join payments
+on leads.visit_page_month= payments.paid_month
+
+select
+'Brasil'as país,
+cus.state as estado,
+count(fun.paid_date)as vendas
+from sales.funnel as fun 
+left join sales.customers as cus 
+on fun.customer_id = cus.customer_id
+where paid_date between '2021-08-01' and '2021-08-31'
+group by país, estado
+order by vendas desc
+limit 5
+
+select
+prod.brand as marca,
+count(fun.paid_date)as vendas
+from sales.funnel as fun 
+left join sales.products as prod 
+on fun.product_id = prod.product_id
+where paid_date between '2021-08-01' and '2021-08-31'
+group by marca
+order by vendas desc
+limit 5
+
+select
+sto.store_name,
+count(fun.paid_date)as vendas
+from sales.funnel as fun 
+left join sales.stores as sto 
+on fun.store_id = sto.store_id
+where paid_date between '2021-08-01' and '2021-08-31'
+group by sto.store_name
+order by vendas desc
+limit 5
+
+select
+date_trunc('day',visit_page_date)::date as dia
+from sales.funnel
+
+select 
+extract ('dow'from visit_page_date :: date ) as dia_da_semana,
+case 
+when extract ('dow'from visit_page_date :: date )=0 then 'Domingo'
+when extract ('dow'from visit_page_date :: date )=1 then 'Segunda-Feira'
+when extract ('dow'from visit_page_date :: date )=2 then 'Terça-Feira'
+when extract ('dow'from visit_page_date :: date )=3 then 'Quarta-Feira'
+when extract ('dow'from visit_page_date :: date )=4 then 'Quinta-Feira'
+when extract ('dow'from visit_page_date :: date )=5 then 'Sexta-Feira'
+when extract ('dow'from visit_page_date :: date )=6 then 'Sábado'
+end as "dia da semana",
+count(*) as contagem_visitas_dow
+from sales.funnel
+where paid_date between '2021-08-01' and '2021-08-31'
+group by dia_da_semana
+order by contagem_visitas_dow desc
