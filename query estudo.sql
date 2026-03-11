@@ -905,3 +905,138 @@ from sales.funnel
 where paid_date between '2021-08-01' and '2021-08-31'
 group by dia_da_semana
 order by contagem_visitas_dow desc
+
+--leads por gender
+select 
+case 
+when ibge.gender='male' then 'Masculino'
+when ibge.gender='female'then 'Feminino'
+end as genero,
+count(ibge.gender) as leads
+from sales.customers as cus
+left join temp_tables.ibge_genders as ibge
+on lower(cus.first_name )= lower(ibge.first_name)
+group by ibge.gender
+
+--leads por professional_status
+select
+cus.professional_status,
+count(fun.customer_id) as leads,
+ROUND((COUNT(fun.customer_id)) / SUM(COUNT(fun.customer_id)) OVER(), 2) AS percentual
+from sales.funnel as fun
+left join sales.customers as cus
+on fun.customer_id = cus.customer_id
+group by cus.professional_status
+
+--leads por faixa etaria
+select
+case 
+when cus.age::int >= 22 and cus.age::int< 33 then '22-32' 
+when cus.age::int >= 33 and cus.age::int< 44 then '33-43' 
+when cus.age::int >= 44 and cus.age::int< 55 then '44-54'
+when cus.age::int >= 55 and cus.age::int< 66 then '55-65' 
+when cus.age::int >= 66 then '65+'
+else 'Não Informado'
+end as faixa_etaria,
+count(fun.customer_id) as leads,
+ROUND((COUNT(fun.customer_id)*100) / SUM(COUNT(cus.customer_id)) OVER(), 2) AS percentual
+from sales.funnel as fun
+left join sales.customers as cus
+on fun.customer_id = cus.customer_id
+group by faixa_etaria
+
+-- select 
+-- min(age), max(age)
+-- from sales.customers
+
+--leads por faixa salarial
+
+
+select
+case 
+when income <5000 then '<5mil'
+  when income >=5000 and income <10000 then '5mil&10mil'
+  when income >=10000 and income <15000 then '10mil&15mil'
+  else '15mil+'
+  end as condicao_financeira,
+count(fun.customer_id) as leads,
+ROUND((COUNT(fun.customer_id)*100) / SUM(COUNT(cus.customer_id)) OVER(), 2) AS percentual
+from sales.funnel as fun
+left join sales.customers as cus
+on fun.customer_id = cus.customer_id
+group by condicao_financeira
+
+
+--leads por faixa CATEGORIA
+
+with ano_veiculo as (
+select * from sales.products
+union all 
+select * from temp_tables.products_2 
+)
+select 
+veic.brand,
+veic.model,
+veic.model_year,
+(extract(year from fun.visit_page_date) - veic.model_year::int)as idade_veiculo,
+case 
+when (extract(year from fun.visit_page_date) - veic.model_year::int) <= 2 then  'Novo'
+else 'Seminovo' end as classificação,
+count(fun.visit_page_date) as leads
+from sales.funnel as fun
+left join ano_veiculo as veic
+on fun.product_id = veic.product_id
+group by veic.brand, veic.model, veic.model_year, classificação, fun.visit_page_date
+order by leads desc
+
+--leads por faixa IDADE DO VEICULO
+
+with faixa_idade_do_veiculo as (
+
+select
+fun.visit_page_date,
+pro.model_year,
+(extract(year from fun.visit_page_date) - pro.model_year::int)as idade_veiculo,
+case 
+when (extract(year from fun.visit_page_date) - pro.model_year::int) <= 2 then  'até 2 anos'
+when (extract(year from fun.visit_page_date) - pro.model_year::int) <= 4 then  'de 2 até 4 anos'
+when (extract(year from fun.visit_page_date) - pro.model_year::int) <= 6 then  'de 4 até 6 anos'
+when (extract(year from fun.visit_page_date) - pro.model_year::int) <= 2 then  'de 6 até 8 anos'
+when (extract(year from fun.visit_page_date) - pro.model_year::int) <= 10 then 'de 8 até 10 anos'
+else 'Acima 10 anos' end as idade_do_veiculo,
+
+case 
+when (extract(year from fun.visit_page_date) - pro.model_year::int) <= 2 then  1
+when (extract(year from fun.visit_page_date) - pro.model_year::int) <= 4 then  2
+when (extract(year from fun.visit_page_date) - pro.model_year::int) <= 6 then  3
+when (extract(year from fun.visit_page_date) - pro.model_year::int) <= 2 then  4
+when (extract(year from fun.visit_page_date) - pro.model_year::int) <= 10 then 5
+else 6 end as ordem
+from sales.funnel as fun
+left join sales.products as pro
+on fun.product_id = pro.product_id
+
+)
+select 
+idade_do_veiculo,
+round(count(*) / sum(count(*)) over(), 4) as veiculos_visitados,
+ordem
+from faixa_idade_do_veiculo
+group by idade_do_veiculo, ordem
+order by ordem
+
+
+-- leads por marca
+select
+pro.brand,
+pro.model,
+count (fun.visit_page_date)
+from sales.funnel as fun
+left join sales.products as pro
+on fun.product_id = pro.product_id
+group by brand, model
+order by brand, model, count (fun.visit_page_date)desc
+
+
+
+select * from sales.funnel
